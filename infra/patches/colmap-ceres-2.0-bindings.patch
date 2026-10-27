@@ -1,0 +1,30 @@
+diff --git a/src/pycolmap/estimators/ceres_bindings.cc b/src/pycolmap/estimators/ceres_bindings.cc
+index 4395dae..e154455 100644
+--- a/src/pycolmap/estimators/ceres_bindings.cc
++++ b/src/pycolmap/estimators/ceres_bindings.cc
+@@ -110,8 +110,10 @@ void BindCeresTypes(py::module& m) {
+       py::enum_<ceres::DenseLinearAlgebraLibraryType>(
+           m, "DenseLinearAlgebraLibraryType", py::module_local())
+           .value("EIGEN", ceres::DenseLinearAlgebraLibraryType::EIGEN)
+-          .value("LAPACK", ceres::DenseLinearAlgebraLibraryType::LAPACK)
+-          .value("CUDA", ceres::DenseLinearAlgebraLibraryType::CUDA);
++          .value("LAPACK", ceres::DenseLinearAlgebraLibraryType::LAPACK);
++#if CERES_VERSION_MAJOR > 2 || (CERES_VERSION_MAJOR == 2 && CERES_VERSION_MINOR >= 2)
++  dlalt.value("CUDA", ceres::DenseLinearAlgebraLibraryType::CUDA);
++#endif
+   AddStringToEnumConstructor(dlalt);
+ 
+   auto slalt =
+@@ -123,9 +125,10 @@ void BindCeresTypes(py::module& m) {
+                  ceres::SparseLinearAlgebraLibraryType::EIGEN_SPARSE)
+           .value("ACCELERATE_SPARSE",
+                  ceres::SparseLinearAlgebraLibraryType::ACCELERATE_SPARSE)
+-          .value("CUDA_SPARSE",
+-                 ceres::SparseLinearAlgebraLibraryType::CUDA_SPARSE)
+           .value("NO_SPARSE", ceres::SparseLinearAlgebraLibraryType::NO_SPARSE);
++#if CERES_VERSION_MAJOR > 2 || (CERES_VERSION_MAJOR == 2 && CERES_VERSION_MINOR >= 3)
++  slalt.value("CUDA_SPARSE", ceres::SparseLinearAlgebraLibraryType::CUDA_SPARSE);
++#endif
+   AddStringToEnumConstructor(slalt);
+ 
+   auto logt =

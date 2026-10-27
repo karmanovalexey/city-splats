@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 import pycolmap
 
@@ -71,8 +72,16 @@ def feature_config(name: str | None = None) -> FeatureConfig:
     extraction.aliked.max_num_features = 4096
     sequential.type = pycolmap.FeatureMatcherType.ALIKED_BRUTEFORCE
     cross.type = pycolmap.FeatureMatcherType.ALIKED_LIGHTGLUE
+    vocab_tree = ALIKED_VOCAB_TREE_URI
+    # Local models also support COLMAP builds without libcurl/download support.
+    if model_dir := os.environ.get("SCENES_MODEL_DIR"):
+        models = Path(model_dir)
+        extraction.aliked.n16rot_model_path = str(models / "aliked-n16rot.onnx")
+        sequential.aliked.brute_force.model_path = str(models / "bruteforce-matcher.onnx")
+        cross.aliked.lightglue.model_path = str(models / "aliked-lightglue.onnx")
+        vocab_tree = str(models / "vocab_tree_faiss_flickr100K_words64K_aliked_n16rot.bin")
     return FeatureConfig(
-        name, extraction, sequential, cross, ALIKED_VOCAB_TREE_URI,
+        name, extraction, sequential, cross, vocab_tree,
         # CoreML can't compile the ALIKED graph, so the Mac stays on CPU ONNX.
         pycolmap.Device.cuda if on_cuda else pycolmap.Device.cpu,
         retrieval_query_stride=1 if on_cuda else 2,

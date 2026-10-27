@@ -150,7 +150,7 @@ def iter_frames(info: VideoInfo, sample_fps: float, max_side: int | None = None,
     before, after = _seek(sample_fps, start, count)
     cmd = [
         "ffmpeg", "-v", "error", "-hwaccel", "auto", *before, "-i", str(info.path),
-        "-vf", ",".join(filters), *after, "-fps_mode", "passthrough", "-f", "rawvideo", "-",
+        "-vf", ",".join(filters), *after, "-vsync", "0", "-f", "rawvideo", "-",
     ]
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     assert proc.stdout is not None
@@ -190,7 +190,7 @@ def iter_gray(info: VideoInfo, sample_fps: float, width: int = _ANALYSIS_WIDTH, 
     cmd = [
         "ffmpeg", "-v", "error", "-hwaccel", "auto", *before, "-i", str(info.path),
         "-vf", f"fps={sample_fps},scale={width}:{height}:flags=area,format=gray",
-        *after, "-fps_mode", "passthrough", "-f", "rawvideo", "-",
+        *after, "-vsync", "0", "-f", "rawvideo", "-",
     ]
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     assert proc.stdout is not None

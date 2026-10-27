@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -18,7 +19,12 @@ _EVAL_RE = re.compile(r"Eval iter (\d+): PSNR ([\d.]+), ssim ([\d.]+)")
 
 
 def eval_results(work_dir: Path) -> list[dict]:
-    """Brush's evaluations on its held-out frames, in step order."""
+    """Trainer evaluations on held-out frames, in step order."""
+    cuda_metrics = work_dir / "metrics.json"
+    if cuda_metrics.exists():
+        metrics = json.loads(cuda_metrics.read_text())
+        if metrics.get("trainer") == "gsplat" and metrics.get("holdout_psnr") is not None:
+            return [{"step": metrics["steps"], "psnr": round(metrics["holdout_psnr"], 3)}]
     log = work_dir / "brush.log"
     text = log.read_text(errors="replace") if log.exists() else ""
     return [{"step": int(m[1]), "psnr": round(float(m[2]), 3), "ssim": round(float(m[3]), 4)}

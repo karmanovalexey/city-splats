@@ -112,3 +112,47 @@ whole-cloud, default-quality baseline with the CUDA pipeline. Current upstream
 already uses tiled clouds and explicit `--quick`; that 13.4x figure is **not** a
 speedup measured against this main revision. Both old runs decoded the video and
 recomputed depth/SfM, with 1,013 frames and about 49 million output points.
+
+
+### CUDA pipeline profile
+
+This branch includes `voxel-lod`, CUDA depth alignment and neighbour-consistency
+fusion, per-tile CUDA voxel reduction/PLY packing, Ceres GPU solver requests, and
+the gsplat trainer. Upstream's streaming spill, incremental tiles, configurable
+depth model, block planning and CPU/Brush paths are retained. Camera/track
+metadata, image decoding, spill/grouping and file I/O still execute on the CPU.
+
+On Linux with CUDA 12.8 and an NVIDIA driver:
+
+1. Install CUDA-enabled pycolmap 4.2.1. For actual GPU sparse solves, build it
+   against CUDA-enabled Ceres + cuDSS; a CUDA feature extractor alone is insufficient.
+   The tested stack used Ceres `07a952622c2118433c783b1c3bd3fabe68420fc5`
+   (2.3.0 development) and cuDSS 1.0.0.35. The old Ceres 2.0 binding patch remains
+   under `infra/patches/` for the CPU-solver compatibility build only.
+2. `uv sync --extra cuda` (gsplat/fused-ssim builds need the matching installed Torch).
+   Pycolmap's native wheel must come from the compatible local COLMAP build; do
+   not replace it with a CPU-only wheel when syncing the environment.
+3. Download ALIKED models with `PYTHONPATH=. .venv/bin/python scripts/download_models.py`.
+4. `source scripts/cuda-env.sh`, then start the app normally. The profile selects
+   `SCENES_DEVICE=cuda`, `SCENES_CUDA_PIPELINE=1`, and `LOD_BACKEND=cuda_voxel`.
+   Override `LOD_BACKEND=spark` to retain upstream's LoD builders.
+
+The CUDA trainer accepts upstream's explicit block evaluation-frame lists and
+excludes those cameras from optimization. It records holdout PSNR in `metrics.json`,
+which the existing evaluation reporting reads. `TRAIN_SKYBOX=0` is the default:
+the optional learned directional background requires a matching viewer extension.
+Do not compare different training schedules/block plans as GPU-only speedups.
+
+Use `SCENES_CUDA_PIPELINE=0`, `LOD_BACKEND=spark`, and the original device selection
+for a CPU/Brush baseline. The older 13.4x measurement above is not a claim about
+this newer tiled baseline. No production scene is launched by this branch.
+
+
+Validation against upstream `af72843` (2026-10-28): on 16 existing DJI frames,
+CPU and CUDA streaming fusion both emitted 1,897,448 points; sampled p99 nearest
+position error was 1.35e-6 scene units, and voxel selection on the same input was
+exact. Eight tiles passed Spark's native RAD decoder. Two concurrent LoD requests
+also decoded as valid finite trees (42,629 original leaves each). CUDA trainer
+smoke checks passed with explicit block holdouts (6 train / 2 evaluation cameras),
+both adaptive and fixed-scale modes. These are compatibility checks, not a new
+end-to-end performance measurement or a full-scene quality assessment.

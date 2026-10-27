@@ -29,7 +29,7 @@ def device() -> str:
 
 
 def trainer() -> Trainer:
-    # gsplat (CUDA) lands in M5; until then Brush everywhere it runs (Metal/Vulkan).
     if device() == "cuda":
-        log.warning("CUDA detected but gsplat trainer not wired yet; using Brush")
+        from worker.pipeline.splat.cuda import CudaTrainer
+        return CudaTrainer()
     return BrushTrainer(BRUSH_BIN)

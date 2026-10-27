@@ -21,6 +21,8 @@ from pathlib import Path
 import numpy as np
 import pycolmap
 
+from backend.app.config import CUDA_PIPELINE, SFM_RANDOM_SEED
+
 from worker.pipeline.devices.dji import camera_track_defect, similarity
 from worker.pipeline.features import FeatureConfig
 from worker.reporting import StepReporter, step
@@ -191,6 +193,10 @@ def _map(database: Path, image_root: Path, sparse_dir: Path, names: list[str], i
         options = pycolmap.IncrementalPipelineOptions()
         options.num_threads = num_threads
         options.image_names = names
+        options.random_seed = SFM_RANDOM_SEED
+        if CUDA_PIPELINE:
+            options.ba_use_gpu = True
+            options.ba_gpu_index = "0"
         if positions:
             options.use_prior_position = True
             options.use_robust_loss_on_prior_position = True
@@ -204,6 +210,15 @@ def _map(database: Path, image_root: Path, sparse_dir: Path, names: list[str], i
         options = pycolmap.GlobalPipelineOptions()
         options.num_threads = num_threads
         options.image_names = names
+        options.random_seed = SFM_RANDOM_SEED
+        if CUDA_PIPELINE:
+            options.mapper.global_positioning.use_gpu = True
+            options.mapper.global_positioning.gpu_index = "0"
+            options.mapper.global_positioning.min_num_images_gpu_solver = 0
+            options.mapper.bundle_adjustment.ceres.use_gpu = True
+            options.mapper.bundle_adjustment.ceres.gpu_index = "0"
+            options.mapper.bundle_adjustment.ceres.min_num_images_gpu_solver = 0
+            options.mapper.ba_gpu_index = "0"
         reconstructions = pycolmap.global_mapping(database, image_root, sparse_dir, options)
     if not reconstructions:
         return None, None

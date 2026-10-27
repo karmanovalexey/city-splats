@@ -16,6 +16,8 @@ from sqlmodel import func, select
 
 from backend.app.config import (
     AUTO_TRAIN,
+    CUDA_PIPELINE,
+    LOD_BACKEND,
     BUILD_LOD_BIN,
     DATA_ROOT,
     DEPTH_MODEL,
@@ -298,7 +300,9 @@ def _densify(head: Version | None, rec: pycolmap.Reconstruction, image_root: Pat
         predict_depth(image_root, names, depth_dir, scene_setting(settings, "DEPTH_MODEL", DEPTH_MODEL),
                       on_progress=lambda done, total: progress.update(
                           0.6 * done / total, detail=f"Predicting depth {done}/{total}"))
+    substage_started = time.perf_counter()
     frames, footprint = align_frames(rec, names, depth_dir, stride=stride)
+    metrics["dense_alignment_seconds"] = time.perf_counter() - substage_started
     parent = head.metrics.get("dense_tiles") if head else None
     voxel = parent["voxel"] if parent else footprint * (scene_from_piece.scale if scene_from_piece else 1.0)
     spill = Spill(dense_dir / "spill", voxel)
@@ -306,15 +310,20 @@ def _densify(head: Version | None, rec: pycolmap.Reconstruction, image_root: Pat
     def sink(xyz: np.ndarray, rgb: np.ndarray) -> None:
         spill.add(apply(scene_from_piece, xyz).astype(np.float32) if scene_from_piece else xyz, rgb)
 
+    substage_started = time.perf_counter()
     fused = fuse_frames(frames, image_root, sink, stride=stride,
                         on_progress=lambda done, total: progress.update(
                             0.6 + 0.2 * done / total, detail=f"Fusing depth maps {done}/{total}"))
+    metrics["dense_fusion_seconds"] = time.perf_counter() - substage_started
     shutil.rmtree(dense_dir / "depth", ignore_errors=True)
+    substage_started = time.perf_counter()
     manifest = update_tiles(parent, spill, dense_dir / "tiles", DATA_ROOT, BUILD_LOD_BIN,
                             scene_setting(settings, "DENSE_TILE_POINTS", DENSE_TILE_POINTS),
                             scene_setting(settings, "LOD_JOBS", LOD_JOBS),
                             on_progress=lambda done, total: progress.update(
                                 0.8 + 0.2 * done / total, detail=f"Building tile LoDs {done}/{total}"))
+    metrics["dense_tiles_seconds"] = time.perf_counter() - substage_started
+    metrics.update(cuda_pipeline=CUDA_PIPELINE, dense_lod_backend=LOD_BACKEND)
     shutil.rmtree(dense_dir / "spill", ignore_errors=True)
     before = sum(t["points"] for t in parent["tiles"].values()) if parent else 0
     total = sum(t["points"] for t in manifest["tiles"].values())

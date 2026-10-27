@@ -253,3 +253,11 @@ def write_cloud_splats(path: Path, xyz: np.ndarray, rgb: np.ndarray, voxel: floa
     header = ("ply\nformat binary_little_endian 1.0\n" f"element vertex {n}\n"
               + "".join(f"property float {p}\n" for p in props) + "end_header\n")
     write_ply(path, header, rows)
+
+
+# Keep CPU references for paired numerical validation. Tiling/spilling remains upstream.
+from backend.app.config import CUDA_PIPELINE
+cpu_align_frames, cpu_fuse_frames = align_frames, fuse_frames
+cpu_voxel_downsample, cpu_write_cloud_splats = voxel_downsample, write_cloud_splats
+if CUDA_PIPELINE:
+    from .cuda_dense import align_frames, fuse_frames, voxel_downsample, write_cloud_splats

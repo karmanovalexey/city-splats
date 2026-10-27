@@ -96,4 +96,11 @@ def scene_setting(scene_settings: dict | None, name: str, default):
     return default if value is None else type(default)(value)
 
 # Opt-in GPU voxel hierarchy; spark preserves upstream quick/quality LoD behavior.
-LOD_BACKEND = os.environ.get("LOD_BACKEND", "spark")
+# The full CUDA profile opts into GPU depth fitting/fusion and Ceres GPU options.
+CUDA_PIPELINE = os.environ.get("SCENES_CUDA_PIPELINE", "0") == "1"
+LOD_BACKEND = os.environ.get("LOD_BACKEND", "cuda_voxel" if CUDA_PIPELINE else "spark")
+# Trainable sky remains opt-in until a matching viewer implementation is installed.
+TRAIN_SKYBOX = os.environ.get("TRAIN_SKYBOX", "0")
+
+# A fixed seed makes paired reconstruction runs easier to compare; -1 preserves upstream.
+SFM_RANDOM_SEED = int(os.environ.get("SCENES_RANDOM_SEED", -1))

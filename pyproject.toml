@@ -9,7 +9,7 @@ dependencies = [
   "opencv-python-headless",
   "pillow",
   "scipy",
-  "torch",
+  "torch==2.9.1",
   "transformers",
   "fastapi",
   "uvicorn[standard]",
@@ -19,6 +19,17 @@ dependencies = [
 
 [project.optional-dependencies]
 cuda-lod = ["cupy-cuda12x>=14,<15", "plyfile"]
+cuda = ["cupy-cuda12x>=14,<15", "gsplat==1.5.3", "ninja", "plyfile", "fused-ssim", "nvidia-cudss-cu12==1.0.0.35"]
 
 [tool.uv]
 package = false
+no-build-isolation-package = ["fused-ssim"]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128", marker = "sys_platform == 'linux'" }
+fused-ssim = { git = "https://github.com/rahul-goel/fused-ssim", rev = "a7c48d6dd7ac6dc39a7958c7c4452e0b10418f38" }
